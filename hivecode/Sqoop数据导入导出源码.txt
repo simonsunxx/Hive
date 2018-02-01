@@ -1,0 +1,22 @@
+用Sqoop将order_hive和asso_products导入Hive中，命令如下：
+$ sqoop import --connect jdbc:mysql://localhost:3306/shop 
+--username root 
+--password 123 
+--table (Mysql中的表名) 
+--fields-terminated-by "\t" 
+--lines-terminated-by "\n" 
+--hive-import 
+--hive-overwrite 
+--create-hive-table
+--hive-table (Hive中的表名) 
+--delete-target-dir
+
+用Sqoop工具将在Hive中实现的关联规则表重新加载到Mysql中去，以供系统使用。命令如下：
+
+sqoop export --connect jdbc:mysql://localhost:3306/shop 
+--username root 
+--password 123 
+--table association_rule 
+--export-dir /user/hive/warehouse/association_rule 
+--input-fields-terminated-by '\001' 
+-- --default-character-set=utf-8

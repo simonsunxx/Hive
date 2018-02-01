@@ -1,0 +1,78 @@
+根据 orders ，order_items 形成order_hive
+CREATE TABLE order_hive AS (SELECT o.order_id,o.CUSTOMER_ID,oi.line_item_id,oi.PRODUCT_ID FROM orders o INNER JOIN order_items oi ON o.order_id = oi.ORDER_ID)
+根据order_id形成每一项商品的订单表
+
+
+! 根据order_hive生成asso_products(mysql下，hive不支持不等值连接)
+CREATE TABLE asso_products AS
+SELECT DISTINCT a.customer_id AS customer_id, a.product_id AS product_a ,b.product_id AS product_b 
+FROM order_hive a RIGHT JOIN order_hive b ON a.product_id <> b.product_id  AND a.customer_id = b.customer_id
+形成关联商品信息初表，以单个用户为单位，统计该用户购买的商品里，两两组合情况
+
+
+! 数据导入hive下；进行p(AB)计算,生成asso_ab表（支持度表）
+Create table asso_ab as
+SELECT COUNT(DISTINCT a.customer_id) AS p_ab,a.product_a,a.product_b FROM asso_products a INNER JOIN asso_products b ON a.product_a = b.product_a AND a.product_b = b.product_b GROUP BY a.product_a,a.product_b
+形成支持度初表（P（AB）） 统计与某个用户够取相同两样商品的用户数量：
+例如：
+用户user1 购买了商品A B
+同时购买了商品A B的用户 进行数量统计 ，记作订单里同时购买了商品A B的数量 P（AB） = count(AB)/count(*)
+这里只是获取了count(AB)的值。count(AB) --count(customer_id)  count(*) --count(customer_id)
+a.product_a = b.product_a AND a.product_b = b.product_b 
+
+
+! 生成asso_a表，为置信度做准备
+--count(A)
+Create table asso_a as
+SELECT COUNT(product_id) AS p_a,product_id FROM order_hive GROUP BY product_id
+求出A的订单数量
+
+P(A) --新增
+create table asso_pa as
+SELECT a.p_a/b.total as pa,a.product_id FROM asso_a a 
+join
+ (SELECT COUNT(line_item_id) AS total FROM order_hive) b 
+ ON 1=1;
+A的订单数量除以所有订单量 求出P(A)
+
+改：求出购买了A的用户数量(每种商品购买人数)
+create table asso_a as
+SELECT COUNT(distinct customer_id) AS p_a,product_id FROM order_hive  GROUP BY product_id
+
+create table asso_pa as
+SELECT a.p_a/b.total as pa,a.product_id FROM asso_a a 
+join
+ (SELECT COUNT(distinct customer_id) AS total FROM order_hive) b ON 1=1;
+求出P(A)
+
+
+生成支持表
+ CREATE TABLE asso_support AS 
+ SELECT a.product_a,a.product_b,a.p_ab/b.total AS support 
+ FROM asso_ab a 
+ JOIN 
+ (SELECT count(distinct customer_id) AS total FROM  order_hive) b 
+ ON 1=1;
+求出商品A 和商品B之间的支持度，以用户为单位
+
+生成asso表，求出置信度  (asso_confidence)
+CREATE TABLE asso_confidence AS
+ SELECT a.product_a, a.product_b, a.support/b.pa as confidence FROM asso_support  a JOIN asso_pa b ON a.product_a = b.product_id;
+求出商品A和商品B的置信度,P(AB)/P(A)
+
+
+
+！生成关联表
+CREATE TABLE association AS
+ SELECT a.product_a,a.product_b,b.support,a.confidence FROM asso a INNER JOIN assosup b 
+ ON a.product_a= b.product_a AND a.product_b=b.product_b
+
+CREATE TABLE association_rule AS
+ SELECT a.product_a,a.product_b,b.support,a.confidence FROM asso_confidence a INNER JOIN asso_support b ON a.product_a= b.product_a AND a.product_b=b.product_b
+结合asso_confidence和asso_support生成关联规则表
+
+
+!日推荐表
+CREATE TABLE daily_recommend AS
+ SELECT COUNT(line_item_id) AS product_num ,product_id FROM order_hive GROUP BY product_id ORDER BY product_num DESC LIMIT 0,4
+选取目前销售量最高的商品
