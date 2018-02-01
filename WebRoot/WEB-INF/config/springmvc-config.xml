@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="http://www.springframework.org/schema/mvc             
+	http://www.springframework.org/schema/mvc/spring-mvc-4.2.xsd              
+	http://www.springframework.org/schema/beans              
+	http://www.springframework.org/schema/beans/spring-beans-4.2.xsd              
+	http://www.springframework.org/schema/context              
+	http://www.springframework.org/schema/context/spring-context-4.2.xsd">       
+	
+	<context:annotation-config />
+
+	<!--controller -->
+	<context:component-scan base-package="com.Controller" />
+	<context:component-scan base-package="com.Service" />
+
+	<context:component-scan base-package="dependencyPackage" />
+	<context:component-scan base-package="basePackage"/>
+	<!--默认的mvc注解映射的支持 -->
+    <mvc:annotation-driven/>
+	
+	<!-- 启动Spring MVC的注解功能，完成请求和注解POJO的映射 -->
+	<bean
+		class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter" />
+
+	<!-- 对模型视图名称的解析，在请求时模型视图名称添加前后缀 -->
+	<bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver"
+		p:prefix="/" p:suffix=".jsp" />
+
+	<!-- apache.dbcp连接池的配置 -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close">
+		<property name="driverClassName" value="com.mysql.jdbc.Driver">
+		</property>
+		<property name="url"
+			value="jdbc:mysql://localhost:3306/shop?useUnicode=true&amp;characterEncoding=UTF-8"></property>
+		<property name="username" value="root"></property>
+		<property name="password" value="520123"></property>
+		<property name="maxActive" value="100"></property>
+		<property name="maxIdle" value="30"></property>
+		<property name="maxWait" value="500"></property>
+		<property name="defaultAutoCommit" value="true"></property>
+	</bean>
+
+	<!-- jdbc注入 -->
+	<bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+		<property name="dataSource">
+			<ref bean="dataSource" />
+		</property>
+	</bean>
+	<!-- Service注入 -->
+	<bean id="CustomerService" class="com.Dao.CustomerDao"></bean>
+	<bean id="AddressService" class="com.Dao.AddressDao"></bean>
+	<bean id="CategoryService" class="com.Dao.CategoryDao"></bean>
+	<bean id="ProductService" class="com.Dao.ProductDao"></bean>
+	<bean id="OrderService" class="com.Dao.OrderDao"></bean>
+	<bean id="CartService" class="com.Dao.CartDao"></bean>
+
+	<!-- Model注入 -->
+	<bean id="Product" class="com.Model.Product"></bean>
+	<bean id="Category" class="com.Model.Category"></bean>
+	<bean id="Customer" class="com.Model.Customer"></bean>
+	<bean id="Address" class="com.Model.Address"></bean>
+	<bean id="Manager" class="com.Model.Manager"></bean>
+	<bean id="Order" class="com.Model.Order"></bean>
+	<bean id="OrderItem" class="com.Model.OrderItem"></bean>
+	<bean id="Cart" class="com.Model.Cart"></bean>
+	 
+	<bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+        <property name="messageConverters">
+            <list>
+                <ref bean="mappingJackson2HttpMessageConverter" />
+            </list>
+        </property>
+    </bean>
+    <bean id="mappingJackson2HttpMessageConverter" class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+        <property name="supportedMediaTypes">
+            <list>
+                <value>text/html;charset=UTF-8</value>
+                <value>text/json;charset=UTF-8</value>
+                <value>application/json;charset=UTF-8</value>
+            </list>
+        </property>
+    </bean>
+	
+</beans>
